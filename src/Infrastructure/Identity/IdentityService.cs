@@ -1,32 +1,21 @@
 using CleanArchitecture.Application.Common.Interfaces;
 using CleanArchitecture.Application.Common.Models;
-using Microsoft.AspNetCore.Authorization;
+using CleanArchitecture.Infrastructure.Data;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 
 namespace CleanArchitecture.Infrastructure.Identity;
 
-public class IdentityService : IIdentityService
+public class IdentityService(
+    ApplicationDbContext context,
+    IPasswordHasher<ApplicationUser> passwordHasher) : IIdentityService
 {
-    private readonly UserManager<ApplicationUser> _userManager;
-    private readonly IUserClaimsPrincipalFactory<ApplicationUser> _userClaimsPrincipalFactory;
-    private readonly IAuthorizationService _authorizationService;
-
-    public IdentityService(
-        UserManager<ApplicationUser> userManager,
-        IUserClaimsPrincipalFactory<ApplicationUser> userClaimsPrincipalFactory,
-        IAuthorizationService authorizationService)
-    {
-        _userManager = userManager;
-        _userClaimsPrincipalFactory = userClaimsPrincipalFactory;
-        _authorizationService = authorizationService;
-    }
-
     public async Task<string?> GetUserNameAsync(string userId)
     {
-        var user = await _userManager.FindByIdAsync(userId);
-
-        return user?.UserName;
+        return await context.Users
+            .Where(u => u.Id == userId)
+            .Select(u => u.UserName)
+            .FirstOrDefaultAsync();
     }
 
     public async Task<(Result Result, string UserId)> CreateUserAsync(string userName, string password)
@@ -34,48 +23,39 @@ public class IdentityService : IIdentityService
         var user = new ApplicationUser
         {
             UserName = userName,
+            NormalizedUserName = userName.ToUpperInvariant(),
             Email = userName,
+            NormalizedEmail = userName.ToUpperInvariant(),
+            SecurityStamp = Guid.NewGuid().ToString(),
         };
 
-        var result = await _userManager.CreateAsync(user, password);
+        user.PasswordHash = passwordHasher.HashPassword(user, password);
 
-        return (result.ToApplicationResult(), user.Id);
-    }
+        context.Users.Add(user);
 
-    public async Task<bool> IsInRoleAsync(string userId, string role)
-    {
-        var user = await _userManager.FindByIdAsync(userId);
-
-        return user != null && await _userManager.IsInRoleAsync(user, role);
-    }
-
-    public async Task<bool> AuthorizeAsync(string userId, string policyName)
-    {
-        var user = await _userManager.FindByIdAsync(userId);
-
-        if (user == null)
+        try
         {
-            return false;
+            await context.SaveChangesAsync();
+            return (Result.Success(), user.Id);
         }
-
-        var principal = await _userClaimsPrincipalFactory.CreateAsync(user);
-
-        var result = await _authorizationService.AuthorizeAsync(principal, policyName);
-
-        return result.Succeeded;
+        catch (DbUpdateException)
+        {
+            return (Result.Failure(["A user with this name already exists."]), user.Id);
+        }
     }
 
     public async Task<Result> DeleteUserAsync(string userId)
     {
-        var user = await _userManager.FindByIdAsync(userId);
+        var user = await context.Users.FindAsync(userId);
 
-        return user != null ? await DeleteUserAsync(user) : Result.Success();
-    }
+        if (user == null)
+        {
+            return Result.Success();
+        }
 
-    public async Task<Result> DeleteUserAsync(ApplicationUser user)
-    {
-        var result = await _userManager.DeleteAsync(user);
+        context.Users.Remove(user);
+        await context.SaveChangesAsync();
 
-        return result.ToApplicationResult();
+        return Result.Success();
     }
 }
