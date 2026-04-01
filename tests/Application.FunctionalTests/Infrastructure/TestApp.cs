@@ -1,7 +1,8 @@
 using CleanArchitecture.Domain.Constants;
 using CleanArchitecture.Infrastructure.Data;
 using CleanArchitecture.Infrastructure.Identity;
-using MediatR;
+using LiteBus.Commands.Abstractions;
+using LiteBus.Queries.Abstractions;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -13,22 +14,31 @@ public static class TestApp
     private static string? _userId;
     private static List<string>? _roles;
 
-    public static async Task<TResponse> SendAsync<TResponse>(IRequest<TResponse> request)
+    public static async Task<TResponse> SendAsync<TResponse>(ICommand<TResponse> command)
     {
         using var scope = FunctionalTestSetup.ScopeFactory.CreateScope();
 
-        var mediator = scope.ServiceProvider.GetRequiredService<ISender>();
+        var mediator = scope.ServiceProvider.GetRequiredService<ICommandMediator>();
 
-        return await mediator.Send(request);
+        return await mediator.SendAsync(command);
     }
 
-    public static async Task SendAsync(IBaseRequest request)
+    public static async Task SendAsync(ICommand command)
     {
         using var scope = FunctionalTestSetup.ScopeFactory.CreateScope();
 
-        var mediator = scope.ServiceProvider.GetRequiredService<ISender>();
+        var mediator = scope.ServiceProvider.GetRequiredService<ICommandMediator>();
 
-        await mediator.Send(request);
+        await mediator.SendAsync(command);
+    }
+
+    public static async Task<TResponse> SendAsync<TResponse>(IQuery<TResponse> query)
+    {
+        using var scope = FunctionalTestSetup.ScopeFactory.CreateScope();
+
+        var mediator = scope.ServiceProvider.GetRequiredService<IQueryMediator>();
+
+        return await mediator.QueryAsync(query);
     }
 
     public static string? GetUserId() => _userId;
@@ -49,34 +59,57 @@ public static class TestApp
     {
         using var scope = FunctionalTestSetup.ScopeFactory.CreateScope();
 
-        var userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
+        var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+        var passwordHasher = scope.ServiceProvider.GetRequiredService<IPasswordHasher<ApplicationUser>>();
 
-        var user = new ApplicationUser { UserName = userName, Email = userName };
+        var user = new ApplicationUser
+        {
+            UserName = userName,
+            NormalizedUserName = userName.ToUpperInvariant(),
+            Email = userName,
+            NormalizedEmail = userName.ToUpperInvariant(),
+            SecurityStamp = Guid.NewGuid().ToString(),
+        };
 
-        var result = await userManager.CreateAsync(user, password);
+        user.PasswordHash = passwordHasher.HashPassword(user, password);
+
+        context.Users.Add(user);
+        await context.SaveChangesAsync();
 
         if (roles.Length > 0)
         {
-            var roleManager = scope.ServiceProvider.GetRequiredService<RoleManager<IdentityRole>>();
+            foreach (var role in roles)
+            {
+                if (!await context.Roles.AnyAsync(r => r.Name == role))
+                {
+                    context.Roles.Add(new IdentityRole
+                    {
+                        Name = role,
+                        NormalizedName = role.ToUpperInvariant(),
+                    });
+                }
+            }
+            await context.SaveChangesAsync();
 
             foreach (var role in roles)
             {
-                await roleManager.CreateAsync(new IdentityRole(role));
+                var roleId = await context.Roles
+                    .Where(r => r.Name == role)
+                    .Select(r => r.Id)
+                    .FirstAsync();
+
+                context.Set<IdentityUserRole<string>>().Add(new IdentityUserRole<string>
+                {
+                    UserId = user.Id,
+                    RoleId = roleId,
+                });
             }
-
-            await userManager.AddToRolesAsync(user, roles);
+            await context.SaveChangesAsync();
         }
 
-        if (result.Succeeded)
-        {
-            _userId = user.Id;
-            _roles = [..roles];
-            return _userId;
-        }
-
-        var errors = string.Join(Environment.NewLine, result.ToApplicationResult().Errors);
-
-        throw new Exception($"Unable to create {userName}.{Environment.NewLine}{errors}");
+        _userId = user.Id;
+        _roles = [..roles];
+        return _userId;
     }
 
     public static async Task ResetState()

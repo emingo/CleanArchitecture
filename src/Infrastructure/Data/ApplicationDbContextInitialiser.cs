@@ -1,9 +1,10 @@
-﻿using CleanArchitecture.Domain.Constants;
+using CleanArchitecture.Domain.Constants;
 using CleanArchitecture.Domain.Entities;
 using CleanArchitecture.Domain.ValueObjects;
 using CleanArchitecture.Infrastructure.Identity;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
@@ -22,32 +23,22 @@ public static class InitialiserExtensions
     }
 }
 
-public class ApplicationDbContextInitialiser
+public class ApplicationDbContextInitialiser(
+    ILogger<ApplicationDbContextInitialiser> logger,
+    ApplicationDbContext context,
+    IPasswordHasher<ApplicationUser> passwordHasher)
 {
-    private readonly ILogger<ApplicationDbContextInitialiser> _logger;
-    private readonly ApplicationDbContext _context;
-    private readonly UserManager<ApplicationUser> _userManager;
-    private readonly RoleManager<IdentityRole> _roleManager;
-
-    public ApplicationDbContextInitialiser(ILogger<ApplicationDbContextInitialiser> logger, ApplicationDbContext context, UserManager<ApplicationUser> userManager, RoleManager<IdentityRole> roleManager)
-    {
-        _logger = logger;
-        _context = context;
-        _userManager = userManager;
-        _roleManager = roleManager;
-    }
-
     public async Task InitialiseAsync()
     {
         try
         {
             // See https://jasontaylor.dev/ef-core-database-initialisation-strategies
-            await _context.Database.EnsureDeletedAsync();
-            await _context.Database.EnsureCreatedAsync();
+            await context.Database.EnsureDeletedAsync();
+            await context.Database.EnsureCreatedAsync();
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "An error occurred while initialising the database.");
+            logger.LogError(ex, "An error occurred while initialising the database.");
             throw;
         }
     }
@@ -60,7 +51,7 @@ public class ApplicationDbContextInitialiser
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "An error occurred while seeding the database.");
+            logger.LogError(ex, "An error occurred while seeding the database.");
             throw;
         }
     }
@@ -68,30 +59,51 @@ public class ApplicationDbContextInitialiser
     public async Task TrySeedAsync()
     {
         // Default roles
-        var administratorRole = new IdentityRole(Roles.Administrator);
-
-        if (_roleManager.Roles.All(r => r.Name != administratorRole.Name))
+        if (!await context.Roles.AnyAsync(r => r.Name == Roles.Administrator))
         {
-            await _roleManager.CreateAsync(administratorRole);
+            context.Roles.Add(new IdentityRole
+            {
+                Name = Roles.Administrator,
+                NormalizedName = Roles.Administrator.ToUpperInvariant(),
+            });
+            await context.SaveChangesAsync();
         }
 
         // Default users
-        var administrator = new ApplicationUser { UserName = "administrator@localhost", Email = "administrator@localhost" };
-
-        if (_userManager.Users.All(u => u.UserName != administrator.UserName))
+        if (!await context.Users.AnyAsync(u => u.UserName == "administrator@localhost"))
         {
-            await _userManager.CreateAsync(administrator, "Administrator1!");
-            if (!string.IsNullOrWhiteSpace(administratorRole.Name))
+            var admin = new ApplicationUser
             {
-                await _userManager.AddToRolesAsync(administrator, new [] { administratorRole.Name });
-            }
+                UserName = "administrator@localhost",
+                NormalizedUserName = "ADMINISTRATOR@LOCALHOST",
+                Email = "administrator@localhost",
+                NormalizedEmail = "ADMINISTRATOR@LOCALHOST",
+                SecurityStamp = Guid.NewGuid().ToString(),
+            };
+            admin.PasswordHash = passwordHasher.HashPassword(admin, "Administrator1!");
+
+            context.Users.Add(admin);
+            await context.SaveChangesAsync();
+
+            // Assign admin role
+            var roleId = await context.Roles
+                .Where(r => r.Name == Roles.Administrator)
+                .Select(r => r.Id)
+                .FirstAsync();
+
+            context.Set<IdentityUserRole<string>>().Add(new IdentityUserRole<string>
+            {
+                UserId = admin.Id,
+                RoleId = roleId,
+            });
+            await context.SaveChangesAsync();
         }
 
         // Default data
         // Seed, if necessary
-        if (!_context.TodoLists.Any())
+        if (!context.TodoLists.Any())
         {
-            _context.TodoLists.Add(new TodoList
+            context.TodoLists.Add(new TodoList
             {
                 Title = "Tasks",
                 Colour = Colour.Green,
@@ -104,7 +116,7 @@ public class ApplicationDbContextInitialiser
                 }
             });
 
-            await _context.SaveChangesAsync();
+            await context.SaveChangesAsync();
         }
     }
 }

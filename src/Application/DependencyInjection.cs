@@ -1,6 +1,9 @@
 using System.Reflection;
 using CleanArchitecture.Application.Common.Behaviours;
+using LiteBus.Commands;
+using LiteBus.Events;
 using LiteBus.Extensions.Microsoft.DependencyInjection;
+using LiteBus.Queries;
 using Microsoft.Extensions.Hosting;
 
 namespace Microsoft.Extensions.DependencyInjection;

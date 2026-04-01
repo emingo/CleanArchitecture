@@ -5,11 +5,11 @@ using CleanArchitecture.Application.Common.Security;
 
 namespace CleanArchitecture.Application.Common.Behaviours;
 
-public class AuthorizationBehaviour<TMessage>(IUser user, IIdentityService identityService)
+public class AuthorizationBehaviour<TMessage>(IUser user)
     : IPipelinePreHandler<TMessage>
     where TMessage : notnull
 {
-    public async Task PreHandleAsync(TMessage message, CancellationToken cancellationToken = default)
+    public Task PreHandleAsync(TMessage message, CancellationToken cancellationToken = default)
     {
         var authorizeAttributes = message.GetType().GetCustomAttributes<AuthorizeAttribute>();
 
@@ -47,21 +47,8 @@ public class AuthorizationBehaviour<TMessage>(IUser user, IIdentityService ident
                     throw new ForbiddenAccessException();
                 }
             }
-
-            // Policy-based authorization
-            var authorizeAttributesWithPolicies = authorizeAttributes.Where(a => !string.IsNullOrWhiteSpace(a.Policy));
-            if (authorizeAttributesWithPolicies.Any())
-            {
-                foreach (var policy in authorizeAttributesWithPolicies.Select(a => a.Policy))
-                {
-                    var authorized = await identityService.AuthorizeAsync(user.Id, policy);
-
-                    if (!authorized)
-                    {
-                        throw new ForbiddenAccessException();
-                    }
-                }
-            }
         }
+
+        return Task.CompletedTask;
     }
 }

@@ -26,7 +26,7 @@ public static class DependencyInjection
         builder.Services.AddOpenApi(options =>
         {
             options.AddOperationTransformer<ApiExceptionOperationTransformer>();
-            options.AddOperationTransformer<IdentityApiOperationTransformer>();
+
 #if (UseApiOnly)
             options.AddDocumentTransformer<BearerSecuritySchemeTransformer>();
 #endif
