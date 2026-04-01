@@ -1,8 +1,8 @@
-﻿using CleanArchitecture.Application.Common.Interfaces;
+using CleanArchitecture.Application.Common.Interfaces;
 
 namespace CleanArchitecture.Application.TodoItems.Commands.UpdateTodoItem;
 
-public record UpdateTodoItemCommand : IRequest
+public record UpdateTodoItemCommand : ICommand
 {
     public int Id { get; init; }
 
@@ -11,7 +11,7 @@ public record UpdateTodoItemCommand : IRequest
     public bool Done { get; init; }
 }
 
-public class UpdateTodoItemCommandHandler : IRequestHandler<UpdateTodoItemCommand>
+public class UpdateTodoItemCommandHandler : ICommandHandler<UpdateTodoItemCommand>
 {
     private readonly IApplicationDbContext _context;
 
@@ -20,7 +20,7 @@ public class UpdateTodoItemCommandHandler : IRequestHandler<UpdateTodoItemComman
         _context = context;
     }
 
-    public async Task Handle(UpdateTodoItemCommand request, CancellationToken cancellationToken)
+    public async Task HandleAsync(UpdateTodoItemCommand request, CancellationToken cancellationToken = default)
     {
         var entity = await _context.TodoItems
             .FindAsync([request.Id], cancellationToken);

@@ -1,8 +1,8 @@
-﻿namespace CleanArchitecture.Application.WeatherForecasts.Queries.GetWeatherForecasts;
+namespace CleanArchitecture.Application.WeatherForecasts.Queries.GetWeatherForecasts;
 
-public record GetWeatherForecastsQuery : IRequest<IEnumerable<WeatherForecast>>;
+public record GetWeatherForecastsQuery : IQuery<IEnumerable<WeatherForecast>>;
 
-public class GetWeatherForecastsQueryHandler : IRequestHandler<GetWeatherForecastsQuery, IEnumerable<WeatherForecast>>
+public class GetWeatherForecastsQueryHandler : IQueryHandler<GetWeatherForecastsQuery, IEnumerable<WeatherForecast>>
 {
     private static readonly string[] Summaries = new[]
     {
@@ -10,7 +10,7 @@ public class GetWeatherForecastsQueryHandler : IRequestHandler<GetWeatherForecas
     };
 
 #pragma warning disable CS1998 // Async method lacks 'await' operators and will run synchronously
-    public async Task<IEnumerable<WeatherForecast>> Handle(GetWeatherForecastsQuery request, CancellationToken cancellationToken)
+    public async Task<IEnumerable<WeatherForecast>> HandleAsync(GetWeatherForecastsQuery request, CancellationToken cancellationToken = default)
 #pragma warning restore CS1998 // Async method lacks 'await' operators and will run synchronously
     {
         var rng = new Random();

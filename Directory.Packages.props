@@ -10,8 +10,8 @@
     <PackageVersion Include="Azure.Identity" Version="1.20.0" />
     <PackageVersion Include="coverlet.collector" Version="8.0.1" />
     <PackageVersion Include="FluentValidation.DependencyInjectionExtensions" Version="12.1.1" />
-    <PackageVersion Include="MediatR" Version="14.1.0" />
-    <PackageVersion Include="MediatR.Contracts" Version="2.0.1" />
+    <PackageVersion Include="LiteBus" Version="4.3.0" />
+    <PackageVersion Include="LiteBus.Extensions.Microsoft.DependencyInjection" Version="4.3.0" />
     <PackageVersion Include="Microsoft.AspNetCore.Diagnostics.EntityFrameworkCore" Version="10.0.5" />
     <PackageVersion Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" Version="10.0.5" />
     <PackageVersion Include="Microsoft.AspNetCore.Mvc.Testing" Version="10.0.5" />
