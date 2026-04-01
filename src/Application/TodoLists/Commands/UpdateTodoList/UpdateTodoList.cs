@@ -3,7 +3,7 @@ using CleanArchitecture.Domain.ValueObjects;
 
 namespace CleanArchitecture.Application.TodoLists.Commands.UpdateTodoList;
 
-public record UpdateTodoListCommand : IRequest
+public record UpdateTodoListCommand : ICommand
 {
     public int Id { get; init; }
 
@@ -12,7 +12,7 @@ public record UpdateTodoListCommand : IRequest
     public string? Colour { get; init; }
 }
 
-public class UpdateTodoListCommandHandler : IRequestHandler<UpdateTodoListCommand>
+public class UpdateTodoListCommandHandler : ICommandHandler<UpdateTodoListCommand>
 {
     private readonly IApplicationDbContext _context;
 
@@ -21,7 +21,7 @@ public class UpdateTodoListCommandHandler : IRequestHandler<UpdateTodoListComman
         _context = context;
     }
 
-    public async Task Handle(UpdateTodoListCommand request, CancellationToken cancellationToken)
+    public async Task HandleAsync(UpdateTodoListCommand request, CancellationToken cancellationToken = default)
     {
         var entity = await _context.TodoLists
             .FindAsync([request.Id], cancellationToken);

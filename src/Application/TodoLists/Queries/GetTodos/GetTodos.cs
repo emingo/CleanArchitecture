@@ -1,4 +1,4 @@
-﻿using CleanArchitecture.Application.Common.Interfaces;
+using CleanArchitecture.Application.Common.Interfaces;
 using CleanArchitecture.Application.Common.Models;
 using CleanArchitecture.Application.Common.Security;
 using CleanArchitecture.Domain.Enums;
@@ -7,9 +7,9 @@ using CleanArchitecture.Domain.ValueObjects;
 namespace CleanArchitecture.Application.TodoLists.Queries.GetTodos;
 
 [Authorize]
-public record GetTodosQuery : IRequest<TodosVm>;
+public record GetTodosQuery : IQuery<TodosVm>;
 
-public class GetTodosQueryHandler : IRequestHandler<GetTodosQuery, TodosVm>
+public class GetTodosQueryHandler : IQueryHandler<GetTodosQuery, TodosVm>
 {
     private readonly IApplicationDbContext _context;
     private readonly IMapper _mapper;
@@ -20,7 +20,7 @@ public class GetTodosQueryHandler : IRequestHandler<GetTodosQuery, TodosVm>
         _mapper = mapper;
     }
 
-    public async Task<TodosVm> Handle(GetTodosQuery request, CancellationToken cancellationToken)
+    public async Task<TodosVm> HandleAsync(GetTodosQuery request, CancellationToken cancellationToken = default)
     {
         return new TodosVm
         {

@@ -1,10 +1,10 @@
-﻿using CleanArchitecture.Application.Common.Interfaces;
+using CleanArchitecture.Application.Common.Interfaces;
 
 namespace CleanArchitecture.Application.TodoLists.Commands.DeleteTodoList;
 
-public record DeleteTodoListCommand(int Id) : IRequest;
+public record DeleteTodoListCommand(int Id) : ICommand;
 
-public class DeleteTodoListCommandHandler : IRequestHandler<DeleteTodoListCommand>
+public class DeleteTodoListCommandHandler : ICommandHandler<DeleteTodoListCommand>
 {
     private readonly IApplicationDbContext _context;
 
@@ -13,7 +13,7 @@ public class DeleteTodoListCommandHandler : IRequestHandler<DeleteTodoListComman
         _context = context;
     }
 
-    public async Task Handle(DeleteTodoListCommand request, CancellationToken cancellationToken)
+    public async Task HandleAsync(DeleteTodoListCommand request, CancellationToken cancellationToken = default)
     {
         var entity = await _context.TodoLists
             .Where(l => l.Id == request.Id)

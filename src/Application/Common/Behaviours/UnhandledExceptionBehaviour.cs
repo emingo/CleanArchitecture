@@ -1,30 +1,36 @@
-﻿using Microsoft.Extensions.Logging;
+using System.Runtime.ExceptionServices;
+using LiteBus.Commands.Abstractions;
+using LiteBus.Queries.Abstractions;
+using Microsoft.Extensions.Logging;
 
 namespace CleanArchitecture.Application.Common.Behaviours;
 
-public class UnhandledExceptionBehaviour<TRequest, TResponse> : IPipelineBehavior<TRequest, TResponse>
-    where TRequest : notnull
+public sealed class UnhandledCommandExceptionHandler(ILogger<UnhandledCommandExceptionHandler> logger)
+    : ICommandErrorHandler
 {
-    private readonly ILogger<TRequest> _logger;
-
-    public UnhandledExceptionBehaviour(ILogger<TRequest> logger)
+    public Task HandleErrorAsync(ICommand message, object? messageResult, Exception exception, CancellationToken cancellationToken = default)
     {
-        _logger = logger;
+        ExceptionLogging.LogAndRethrow(logger, message, exception);
+        return Task.CompletedTask; // unreachable
     }
+}
 
-    public async Task<TResponse> Handle(TRequest request, RequestHandlerDelegate<TResponse> next, CancellationToken cancellationToken)
+public sealed class UnhandledQueryExceptionHandler(ILogger<UnhandledQueryExceptionHandler> logger)
+    : IQueryErrorHandler
+{
+    public Task HandleErrorAsync(IQuery message, object? messageResult, Exception exception, CancellationToken cancellationToken = default)
     {
-        try
-        {
-            return await next();
-        }
-        catch (Exception ex)
-        {
-            var requestName = typeof(TRequest).Name;
+        ExceptionLogging.LogAndRethrow(logger, message, exception);
+        return Task.CompletedTask; // unreachable
+    }
+}
 
-            _logger.LogError(ex, "CleanArchitecture Request: Unhandled Exception for Request {Name} {@Request}", requestName, request);
-
-            throw;
-        }
+internal static class ExceptionLogging
+{
+    public static void LogAndRethrow(ILogger logger, object message, Exception exception)
+    {
+        var requestName = message.GetType().Name;
+        logger.LogError(exception, "CleanArchitecture Request: Unhandled Exception for Request {Name} {@Request}", requestName, message);
+        ExceptionDispatchInfo.Capture(exception).Throw();
     }
 }
