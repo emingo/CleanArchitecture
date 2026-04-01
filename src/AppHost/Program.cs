@@ -2,20 +2,15 @@ using CleanArchitecture.Shared;
 
 var builder = DistributedApplication.CreateBuilder(args);
 
-builder.AddAzureContainerAppEnvironment("aca-env");
-
 #if (UsePostgreSQL)
 var databaseServer = builder
-    .AddAzurePostgresFlexibleServer(Services.DatabaseServer)
-    .WithPasswordAuthentication()
-    .RunAsContainer(container => 
-        container.WithLifetime(ContainerLifetime.Persistent))
+    .AddPostgres(Services.DatabaseServer)
+    .WithLifetime(ContainerLifetime.Persistent)
     .AddDatabase(Services.Database);
 #elif (UseSqlServer)
 var databaseServer = builder
-    .AddAzureSqlServer(Services.DatabaseServer)
-    .RunAsContainer(container => 
-        container.WithLifetime(ContainerLifetime.Persistent))
+    .AddSqlServer(Services.DatabaseServer)
+    .WithLifetime(ContainerLifetime.Persistent)
     .AddDatabase(Services.Database);
 #else
 var databaseServer = builder
